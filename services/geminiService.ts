@@ -50,25 +50,26 @@ const seoSchema = {
 };
 
 export const generateSEOStrategy = async (keyword: string): Promise<SEOData> => {
+  // A Vercel precisa que a chave esteja configurada em Settings -> Environment Variables
   const apiKey = process.env.API_KEY;
   
-  if (!apiKey) {
-    throw new Error("A chave de API não foi configurada corretamente no ambiente.");
+  if (!apiKey || apiKey === "undefined" || apiKey.length < 10) {
+    throw new Error("API_KEY_MISSING: A chave de API não foi encontrada. Se você está na Vercel, configure a variável de ambiente 'API_KEY' nas configurações do projeto e faça um redeploy.");
   }
 
   const ai = new GoogleGenAI({ apiKey });
 
   const prompt = `
-    Atue como um estrategista sênior de SEO.
+    Atue como um estrategista sênior de SEO especializado em Google Search.
     
     Palavra-chave alvo: "${keyword}"
     
-    Gere uma estratégia completa e um PLANO ESTRATÉGICO DE IMPLEMENTAÇÃO:
-    1. Título da Página (Title Tag): Keyword no início, 50-60 caracteres.
-    2. Meta Descrição: Persuasiva, com CTA, 140-160 caracteres.
-    3. Plano Estratégico: Divida em 3 fases (Fundação, Autoridade, Expansão). Para cada fase, sugira uma tarefa prática baseada na análise.
+    Gere uma estratégia completa e um PLANO ESTRATÉGICO DE IMPLEMENTAÇÃO detalhado:
+    1. Título da Página (Title Tag): Keyword no início, 50-60 caracteres, focado em CTR.
+    2. Meta Descrição: Persuasiva, com gatilhos mentais e CTA, 140-160 caracteres.
+    3. Plano Estratégico: Divida em 3 fases (Fundação, Autoridade, Expansão). Para cada fase, sugira uma tarefa técnica ou de conteúdo extremamente prática.
     
-    Retorne os dados em Português do Brasil no formato JSON estrito conforme o schema.
+    Importante: Retorne os dados estritamente em Português do Brasil no formato JSON conforme o schema definido.
   `;
 
   try {
@@ -83,15 +84,29 @@ export const generateSEOStrategy = async (keyword: string): Promise<SEOData> => 
 
     const text = response.text;
     if (!text) {
-      throw new Error("O modelo não retornou conteúdo. Tente novamente.");
+      throw new Error("O modelo retornou uma resposta vazia. Tente uma palavra-chave diferente.");
     }
 
-    return JSON.parse(text) as SEOData;
+    try {
+      return JSON.parse(text) as SEOData;
+    } catch (parseError) {
+      console.error("Erro ao processar JSON da IA:", text);
+      throw new Error("Erro de formatação nos dados gerados pela IA. Por favor, tente novamente.");
+    }
   } catch (error: any) {
     console.error("Erro na geração de SEO:", error);
+    
+    // Tratamento de erros específicos da API
     if (error.message?.includes('429')) {
-      throw new Error("Muitas requisições. Por favor, aguarde alguns segundos antes de tentar novamente.");
+      throw new Error("Limite de requisições atingido (Quota). Aguarde 60 segundos.");
     }
-    throw new Error(error.message || "Falha ao gerar estratégia de SEO.");
+    if (error.message?.includes('403') || error.message?.includes('API_KEY_INVALID')) {
+      throw new Error("Chave de API inválida ou sem permissão. Verifique sua conta no Google AI Studio.");
+    }
+    if (error.message?.includes('User location is not supported')) {
+      throw new Error("A API do Gemini não está disponível na sua região atual (CORS/VPN pode ser necessário ou verifique as restrições do Google).");
+    }
+    
+    throw new Error(error.message || "Falha na conexão com o motor de IA.");
   }
 };

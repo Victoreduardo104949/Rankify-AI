@@ -37,11 +37,11 @@ import {
   Eye,
   User as UserIcon,
   LogOut,
-  TrendingUp
+  TrendingUp,
+  Settings
 } from 'lucide-react';
 
 const STRIPE_PAYMENT_LINK: string = 'https://buy.stripe.com/test_aFadR9fPM0SQ8V4fIh87K00'; 
-const IS_TEST_MODE = STRIPE_PAYMENT_LINK.includes('test_');
 
 const SAMPLE_DATA: SEOData = {
   titleTag: "SEO Master: O Guia Definitivo para Rankear em 2025",
@@ -92,7 +92,6 @@ const App: React.FC = () => {
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   
   const [credits, setCredits] = useState<UserCredits>(() => {
-    // Inicialização do estado via função para ler o localStorage imediatamente
     const savedCredits = localStorage.getItem('rankify_credits');
     if (savedCredits) {
       return JSON.parse(savedCredits);
@@ -115,12 +114,10 @@ const App: React.FC = () => {
     enabled: false
   });
 
-  // Sincroniza créditos com localStorage sempre que mudarem
   useEffect(() => {
     localStorage.setItem('rankify_credits', JSON.stringify(credits));
   }, [credits]);
 
-  // Persistência de Sessão e Verificação de URL
   useEffect(() => {
     const savedUser = localStorage.getItem('rankify_session');
     if (savedUser) {
@@ -152,7 +149,6 @@ const App: React.FC = () => {
         isAgency: true
       });
     } else {
-      // Se logar como não-pro, mantém os créditos que já tinha no navegador
       const savedCredits = localStorage.getItem('rankify_credits');
       if (savedCredits) {
         setCredits(JSON.parse(savedCredits));
@@ -163,7 +159,6 @@ const App: React.FC = () => {
   const handleLogout = () => {
     setCurrentUser(null);
     localStorage.removeItem('rankify_session');
-    // Ao deslogar, reseta para os créditos salvos localmente ou o padrão
     const savedCredits = localStorage.getItem('rankify_credits');
     if (savedCredits) {
       setCredits(JSON.parse(savedCredits));
@@ -213,23 +208,16 @@ const App: React.FC = () => {
         setData(result);
         setViewMode('cards');
         if (!credits.isPro) {
-          setCredits(prev => {
-            const next = { ...prev, remaining: Math.max(0, prev.remaining - 1) };
-            return next;
-          });
+          setCredits(prev => ({ ...prev, remaining: Math.max(0, prev.remaining - 1) }));
         }
       }
     } catch (err: any) {
-      setError(err instanceof Error ? err.message : "Erro inesperado.");
+      // Captura o erro da API e exibe para o usuário
+      setError(err instanceof Error ? err.message : "Erro crítico na análise.");
       setViewMode('guide');
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleSampleData = () => {
-    setData(SAMPLE_DATA);
-    setViewMode('cards');
   };
 
   const handlePrint = () => {
@@ -287,9 +275,7 @@ const App: React.FC = () => {
                 <FileText size={40} />
               </div>
               <h3 className="text-2xl font-black text-slate-900 mb-2">Construindo Relatório</h3>
-              <p className="text-slate-500 font-bold text-sm leading-relaxed mb-6">
-                Sincronizando as 6 páginas estratégicas com Plano Estratégico e Marca Própria...
-              </p>
+              <p className="text-slate-500 font-bold text-sm leading-relaxed mb-6">Sincronizando as 6 páginas estratégicas com Marca Própria...</p>
             </div>
           </div>
         )}
@@ -304,27 +290,12 @@ const App: React.FC = () => {
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Logado como</p>
                     <p className="text-xs font-bold text-slate-700 leading-none">{currentUser.email}</p>
                   </div>
-                  <button 
-                    onClick={handleLogout}
-                    className="p-2 text-slate-400 hover:text-red-500 transition-colors"
-                    title="Sair"
-                  >
-                    <LogOut size={18} />
-                  </button>
+                  <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-red-500 transition-colors" title="Sair"><LogOut size={18} /></button>
                 </div>
               ) : (
-                <button 
-                  onClick={() => setIsAuthOpen(true)}
-                  className="flex items-center gap-2 px-4 py-2 text-slate-500 hover:text-slate-900 font-bold text-sm transition-colors"
-                >
-                  <UserIcon size={18} /> Login
-                </button>
+                <button onClick={() => setIsAuthOpen(true)} className="flex items-center gap-2 px-4 py-2 text-slate-500 hover:text-slate-900 font-bold text-sm transition-colors"><UserIcon size={18} /> Login</button>
               )}
-
-              <button 
-                onClick={() => !credits.isPro && setIsUpgradeModalOpen(true)} 
-                className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs sm:text-sm font-bold transition-all ${credits.isPro ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-slate-900 text-white hover:bg-slate-800'}`}
-              >
+              <button onClick={() => !credits.isPro && setIsUpgradeModalOpen(true)} className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs sm:text-sm font-bold transition-all ${credits.isPro ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-slate-900 text-white hover:bg-slate-800'}`}>
                 {credits.isPro ? <><Check size={16} /> Plano Pro</> : <><Crown size={16} className="text-amber-400" /> Upgrade Pro</>}
               </button>
             </div>
@@ -334,31 +305,49 @@ const App: React.FC = () => {
         <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-8 md:py-12">
           {error && (
             <div className="max-w-2xl mx-auto mb-8 animate-in slide-in-from-top-2 duration-300">
-              <div className="bg-red-50 border border-red-100 rounded-2xl p-4 flex items-center gap-3 text-red-700">
-                <AlertCircle size={20} className="flex-shrink-0" />
-                <p className="text-sm font-bold">{error}</p>
-                <button onClick={() => setError(null)} className="ml-auto text-red-400 hover:text-red-600"><X size={18} /></button>
+              <div className="bg-red-50 border border-red-100 rounded-[28px] p-6 flex flex-col gap-4 text-red-700 shadow-xl shadow-red-100/50">
+                <div className="flex items-center gap-3">
+                  <AlertCircle size={24} className="flex-shrink-0 text-red-500" />
+                  <h4 className="font-black uppercase tracking-widest text-sm">Falha na Análise</h4>
+                </div>
+                <p className="text-sm font-bold leading-relaxed">{error}</p>
+                {error.includes('API_KEY_MISSING') && (
+                  <div className="bg-white/50 p-4 rounded-2xl border border-red-200">
+                    <p className="text-[11px] font-bold text-red-800 flex items-center gap-2 mb-2 italic">
+                      <Settings size={14} /> Dica para Vercel:
+                    </p>
+                    <p className="text-[10px] text-red-600 leading-tight">
+                      Acesse Settings -> Environment Variables, adicione a chave 'API_KEY' e faça um novo Deploy.
+                    </p>
+                  </div>
+                )}
+                <button onClick={() => setError(null)} className="ml-auto text-xs font-black uppercase tracking-widest text-red-400 hover:text-red-600">Fechar Aviso</button>
               </div>
             </div>
           )}
 
           <div className="max-w-3xl mx-auto text-center mb-12">
-            <h2 className="text-4xl md:text-6xl font-extrabold text-slate-900 tracking-tight mb-4">
+            <h2 className="text-4xl md:text-6xl font-extrabold text-slate-900 tracking-tight mb-4 italic">
               Estratégias SEO com <br/>
               <span className="bg-clip-text text-transparent bg-gradient-to-r" style={{ backgroundImage: `linear-gradient(to right, ${agencyConfig.enabled && credits.isPro ? agencyConfig.primaryColor : '#4f46e5'}, ${agencyConfig.enabled && credits.isPro ? agencyConfig.primaryColor + 'cc' : '#7c3aed'})` }}>Inteligência Pura.</span>
             </h2>
-            <p className="text-slate-500 text-lg md:text-xl font-medium mb-8">Análises detalhadas para dominar a primeira página.</p>
+            <p className="text-slate-500 text-lg md:text-xl font-medium mb-8">Análises detalhadas para dominar a primeira página do Google.</p>
 
             <form onSubmit={handleGenerate} className="relative group max-w-2xl mx-auto mb-4">
               <div className="absolute -inset-1 rounded-2xl blur opacity-20 group-hover:opacity-30 transition duration-500" style={primaryStyle} />
               <div className="relative flex items-center bg-white rounded-2xl border border-gray-200 shadow-xl p-2">
                 <Search className="ml-4 text-slate-400" size={22} />
                 <input type="text" value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="Digite sua palavra-chave..." className="w-full pl-4 pr-4 py-4 outline-none text-lg text-slate-700 font-medium bg-transparent" disabled={isLoading} />
-                <button type="submit" disabled={isLoading || !keyword.trim()} className="text-white px-8 py-4 rounded-xl font-bold transition-all shadow-lg min-w-[140px] hover:brightness-110 active:scale-95" style={primaryStyle}>
+                <button type="submit" disabled={isLoading || !keyword.trim()} className="text-white px-8 py-4 rounded-xl font-bold transition-all shadow-lg min-w-[140px] hover:brightness-110 active:scale-95 flex items-center justify-center" style={primaryStyle}>
                   {isLoading ? <Loader2 className="animate-spin" size={24} /> : 'Analisar'}
                 </button>
               </div>
             </form>
+            {!credits.isPro && (
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300 mt-4">
+                Você tem <span className="text-slate-900">{credits.remaining}</span> créditos restantes.
+              </p>
+            )}
           </div>
 
           <div className="space-y-6">
@@ -382,8 +371,7 @@ const App: React.FC = () => {
                   <button onClick={() => setIsPreviewOpen(true)} className="flex items-center gap-2 px-4 py-2 border border-slate-200 text-slate-600 rounded-xl text-xs font-black hover:bg-slate-50 transition-all"><Eye size={16} /> Preview</button>
                   {credits.isPro ? (
                     <button onClick={handlePrint} disabled={isPreparingPDF} className="flex items-center gap-2 px-6 py-2 bg-slate-900 text-white rounded-xl text-xs font-black hover:bg-slate-800 transition-all shadow-lg active:scale-95 disabled:opacity-50">
-                      {isPreparingPDF ? <Loader2 size={16} className="animate-spin" /> : <Printer size={16} />} 
-                      Gerar PDF Completo
+                      {isPreparingPDF ? <Loader2 size={16} className="animate-spin" /> : <Printer size={16} />} Gerar PDF Completo
                     </button>
                   ) : (
                     <button onClick={() => setIsUpgradeModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 border border-amber-100 rounded-xl text-xs font-bold hover:bg-amber-100 transition-all"><Crown size={14} /> Liberar PDF</button>
@@ -403,12 +391,7 @@ const App: React.FC = () => {
                 <p className="text-slate-500 font-medium max-w-sm mx-auto mb-8">
                   Gere relatórios profissionais com sua logo e cores para seus clientes por apenas <span className="text-indigo-600 font-black">R$ 29,90/mês</span>.
                 </p>
-                <button 
-                  onClick={() => setIsUpgradeModalOpen(true)} 
-                  className="bg-indigo-600 text-white px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-sm shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95"
-                >
-                  Ativar Modo PRO Agora
-                </button>
+                <button onClick={() => setIsUpgradeModalOpen(true)} className="bg-indigo-600 text-white px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-sm shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95">Ativar Modo PRO Agora</button>
               </div>
             ))}
             {data && viewMode === 'cards' && (
@@ -433,13 +416,8 @@ const App: React.FC = () => {
         </main>
       </div>
 
-      <AuthModal 
-        isOpen={isAuthOpen} 
-        onClose={() => setIsAuthOpen(false)} 
-        onLogin={handleLogin} 
-      />
+      <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} onLogin={handleLogin} />
 
-      {/* Modal de Preview do Relatório */}
       {isPreviewOpen && data && (
         <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[200] flex items-center justify-center p-4 sm:p-8 no-print animate-in fade-in duration-300">
           <div className="bg-white rounded-[48px] w-full max-w-5xl h-full flex flex-col shadow-2xl overflow-hidden">
@@ -489,7 +467,6 @@ const App: React.FC = () => {
                     </div>
                   ))}
                 </div>
-                
                 <div className="bg-slate-50 rounded-3xl p-6 mb-8 border border-slate-100 relative">
                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Assinatura Mensal</p>
                    <div className="flex items-baseline justify-between w-full">
@@ -497,7 +474,6 @@ const App: React.FC = () => {
                       <div className="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest animate-pulse">Melhor Valor</div>
                    </div>
                 </div>
-
                 <a href={STRIPE_PAYMENT_LINK} className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black text-xl hover:bg-indigo-700 transition-all flex items-center justify-center gap-3 shadow-xl group">Ativar Modo PRO <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" /></a>
               </div>
             </div>
